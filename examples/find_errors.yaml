@@ -1,0 +1,21 @@
+# Starter example — adapt the four values marked <-- and run.
+#
+#   btgrep hunt --spec examples/find_errors.yaml -o errors.csv
+#
+# Finds log spans whose `output` matches an error-ish regex in the last 7 days.
+# No enrichment; CSV columns are auto-derived from the matched rows.
+
+project: your-project-name        # <-- your Braintrust project name
+since: 7d                         # <-- window: 7d / 36h / ISO / epoch-ms
+org: your-org-slug                # <-- your org slug (only needed for deep-link urls)
+
+# Optional: a cheap server-side prefilter so the scan pulls far fewer rows.
+# Use MATCH (full-text). Drop this if you're not sure what token to filter on.
+prefilter:
+  match:
+    - output=error                # <-- a word that appears in the rows you want
+
+predicates:
+  mode: all
+  regex:
+    - output=(?i)error|timeout|refused|exception   # <-- your pattern (field=regex)

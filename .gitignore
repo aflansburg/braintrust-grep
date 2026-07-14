@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# uv
+uv.lock
+
+# Tooling
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Env / secrets
+.env
+.env.*
+
+# Output artifacts
+*.csv
+*.jsonl
+!examples/*.jsonl
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

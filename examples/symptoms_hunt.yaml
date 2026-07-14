@@ -1,0 +1,59 @@
+# Worked example (real-world shape) — a "hallucination on an empty document" hunt.
+#
+# This is a TEMPLATE, not runnable as-is: it targets a specific project + log
+# schema. Copy it and replace `project`, `org`, the regex, the metadata keys,
+# and the enrich/export fields with paths that exist in YOUR logs.
+#
+# What it finds — spans where BOTH hold on the same span:
+#   1. output contains a "symptoms":[{...evidence...source_date...}] array (regex), AND
+#   2. the input.raw_text METADATA block has empty/missing `pages` AND `documentdata`
+#      (i.e. the source document had no pages and no document data).
+#
+# Run from the repo root (so the @examples/symptoms.re path resolves):
+#   btgrep hunt --spec examples/symptoms_hunt.yaml -o out.csv
+#
+# Requires: BRAINTRUST_API_KEY, and BRAINTRUST_ORG_NAME (or `org:` below) for deep-links.
+
+project: your-project-name      # <-- your Braintrust project
+since: 14d
+until: now
+org: your-org-slug              # <-- your org slug (for deep-links)
+
+# Server-side prefilter (MATCH, not LIKE — LIKE is blind to structured `output`).
+prefilter:
+  match:
+    - output=evidence
+    - output=symptoms
+
+predicates:
+  mode: all
+  regex:
+    - output=@examples/symptoms.re
+  metadata_empty:
+    - field: input.raw_text
+      keys: [pages, documentdata]
+
+# Extra columns to pull during the scan so export can show span_name.
+select_extra:
+  - span_attributes
+
+enrich:
+  # Fields from each trace's root span. Replace with paths that exist in your logs.
+  root_fields:
+    - input.doc_id
+    - input.patient_id
+    - input.object_path
+  bucket: 1h
+  batch: 60
+
+export:
+  columns:
+    - created
+    - span_id
+    - span_name=span_attributes.name
+    - root_span_id
+    - doc_id
+    - patient_id
+    - object_path
+    - output
+    - url
