@@ -105,3 +105,49 @@ def test_build_metadata_spec_dict_carries_own_marker():
     p = preds[0]
     assert p.field == "m" and p.keys == ("a", "b")
     assert p.marker == "@@" and p.require_marker is False
+
+
+def _write_jsonl(tmp_path, rows):
+    p = tmp_path / "in.jsonl"
+    p.write_text("\n".join(json.dumps(r) for r in rows))
+    return p
+
+
+def test_export_resolves_project_id_from_name(monkeypatch, tmp_path):
+    monkeypatch.setattr(cli, "resolve_project_id", lambda name: "PID-123")
+    src = _write_jsonl(tmp_path, [{"span_id": "S", "root_span_id": "R"}])
+    out = tmp_path / "out.csv"
+    result = runner.invoke(
+        cli.app, ["export", "-i", str(src), "-o", str(out), "-p", "proj", "--org", "Org"]
+    )
+    assert result.exit_code == 0, result.output
+    text = out.read_text()
+    assert "url" in text.splitlines()[0]
+    assert "object_id=PID-123" in text and "r=R" in text and "s=S" in text
+
+
+def test_export_without_org_writes_no_url(monkeypatch, tmp_path):
+    # resolve should not even be called when org is absent
+    monkeypatch.setattr(
+        cli, "resolve_project_id", lambda name: (_ for _ in ()).throw(AssertionError("called"))
+    )
+    monkeypatch.delenv("BRAINTRUST_ORG_NAME", raising=False)
+    src = _write_jsonl(tmp_path, [{"span_id": "S", "root_span_id": "R"}])
+    out = tmp_path / "out.csv"
+    result = runner.invoke(cli.app, ["export", "-i", str(src), "-o", str(out)])
+    assert result.exit_code == 0, result.output
+    assert "url" not in out.read_text().splitlines()[0]
+
+
+def test_export_resolution_failure_is_non_fatal(monkeypatch, tmp_path):
+    def boom(name):
+        raise cli.BtgrepError("bt missing")
+
+    monkeypatch.setattr(cli, "resolve_project_id", boom)
+    src = _write_jsonl(tmp_path, [{"span_id": "S", "root_span_id": "R"}])
+    out = tmp_path / "out.csv"
+    result = runner.invoke(
+        cli.app, ["export", "-i", str(src), "-o", str(out), "-p", "proj", "--org", "Org"]
+    )
+    assert result.exit_code == 0, result.output  # still writes
+    assert "url" not in out.read_text().splitlines()[0]

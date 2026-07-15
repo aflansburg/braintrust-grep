@@ -61,6 +61,15 @@ def _project_id(name: str | None, project_id: str | None) -> str:
         raise typer.Exit(2) from exc
 
 
+def _resolve_for_links(project: str) -> str | None:
+    """Resolve a project name to its id for deep-links; None (with a warning) on failure."""
+    try:
+        return resolve_project_id(project)
+    except BtgrepError as exc:
+        err(f"warning: no deep-link url column — could not resolve project id ({exc})")
+        return None
+
+
 def _read_pattern(spec: str) -> str:
     """A leading '@' means read the raw regex from a file (dodges shell quoting)."""
     if spec.startswith("@"):
@@ -290,7 +299,10 @@ def export(
     project: Annotated[
         str | None, typer.Option("--project", "-p", help="Project slug for deep-links")
     ] = None,
-    project_id: Annotated[str | None, typer.Option(help="Project id for deep-links")] = None,
+    project_id: Annotated[
+        str | None,
+        typer.Option(help="Project id for deep-links (auto-resolved from --project if omitted)"),
+    ] = None,
     columns: Annotated[
         list[str] | None,
         typer.Option("--columns", help="CSV columns as 'header=path' or 'path' (default: auto)"),
@@ -298,15 +310,19 @@ def export(
 ) -> None:
     """Write matched/enriched rows to CSV (with span deep-links) or JSONL.
 
-    Columns default to the scalar fields present on the rows; pass --columns to
-    control them, including nested paths like output or span_attributes.name.
+    A `url` deep-link column is added when --org and --project are given; the
+    project id is resolved from --project unless you pass --project-id. Columns
+    default to the scalar fields present on the rows; pass --columns to control
+    them, including nested paths like output or span_attributes.name.
     """
     rows = _read_jsonl(input_file)
     import os
 
     org = org or os.environ.get("BRAINTRUST_ORG_NAME")
-    if org and project and project_id:
-        rows = add_urls(rows, org=org, project=project, project_id=project_id)
+    if org and project:
+        pid = project_id or _resolve_for_links(project)
+        if pid:
+            rows = add_urls(rows, org=org, project=project, project_id=pid)
     if fmt == "jsonl":
         n = to_jsonl(rows, output)
     else:

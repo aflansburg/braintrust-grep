@@ -43,8 +43,7 @@ btgrep search -p your-project --since 14d \
   | btgrep enrich -p your-project \
       --root-field input.doc_id --root-field input.patient_id \
       --root-field input.object_path \
-  | btgrep export -o symptoms.csv -p your-project \
-      --org your-org-slug --project-id "$PROJECT_ID" \
+  | btgrep export -o symptoms.csv -p your-project --org your-org-slug \
       --columns 'created,span_id,span_name=span_attributes.name,doc_id,patient_id,output,url'
 ```
 

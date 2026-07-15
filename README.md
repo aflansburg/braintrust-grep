@@ -69,7 +69,7 @@ It's a subcommand pattern we decided to support common in pipeline tooling like 
 ```bash
 btgrep search -p my-project --since 14d --regex 'output=foo' \
   | btgrep enrich -p my-project --root-field input.doc_id --root-field input.patient_id \
-  | btgrep export -o out.csv -p my-project --org MyOrg --project-id "$PID"
+  | btgrep export -o out.csv -p my-project --org MyOrg   # project id auto-resolved
 ```
 
 You can write up a declarative spec (copy one from [`examples/`](examples/) and
@@ -111,7 +111,7 @@ enriched = enrich(client, matches, project_id=pid,
 
 - `Regex(field, pattern, flags)`: regex over a dotted field (non-strings are JSON-serialized first, so you can match structure). `field="*"` matches the whole row.
 - `EmptyOrMissing(field)`: true when the key is absent **or** the value is `""`/`[]`/`{}`/`null`. (Regex can't express "missing".)
-- `MetadataObjectEmpty(field, keys, marker=None)`: parses JSON found in `field` — a JSON column, a JSON string, or a block embedded in text after an optional `marker` (e.g. `"=== METADATA ==="`) — and matches when every named key is empty-or-missing. Schema-agnostic: set `field`/`keys`/`marker` to your own.
+- `MetadataObjectEmpty(field, keys, marker=None)`: parses JSON found in `field` — a JSON column, a JSON string, or a block embedded in text after an optional `marker` (e.g. the field may be raw text with a preceding `"=== METADATA ==="`) — and matches when every named key is empty-or-missing. Schema-agnostic: set `field`/`keys`/`marker` to your own.
 - `AllOf` / `AnyOf` / `Not`: compose them.
 
 ## Constraints & gotchas (why this library exists)
@@ -135,12 +135,6 @@ enriched = enrich(client, matches, project_id=pid,
 `retry_statuses`, backoff knobs, etc. `.env` is loaded automatically if
 `python-dotenv` is installed (never required).
 
-## Deferred (not in v1)
-
-Async client; parallel bucket fetching (the rate limit makes concurrency
-low-value); result caching/resume; non-`project_logs` sources (experiments,
-datasets); a custom-predicate plugin system beyond `--spec`; an interactive TUI.
-
 ## Development
 
 ```bash
@@ -162,6 +156,12 @@ uv run pytest tests/test_client.py  # one file
 uv run pytest -k "retry or gzip"    # tests matching an expression
 uv run pytest -x -q                 # stop at first failure, quiet
 ```
+
+## TBD
+
+Async client; parallel bucket fetching (the rate limit makes concurrency
+low-value); result caching/resume; non-`project_logs` sources (experiments,
+datasets); a custom-predicate plugin system beyond `--spec`; an interactive TUI.
 
 ## Contributing
 
