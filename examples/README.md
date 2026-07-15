@@ -38,6 +38,7 @@ btgrep search -p your-project --since 14d \
     --match-fulltext output=evidence --match-fulltext output=symptoms \
     --regex 'output=@examples/symptoms.re' \
     --metadata-empty 'input.raw_text:pages,documentdata' \
+    --metadata-marker '=== METADATA ===' \
     --extra-select span_attributes \
   | btgrep enrich -p your-project \
       --root-field input.doc_id --root-field input.patient_id \

@@ -31,6 +31,9 @@ predicates:
     - output=@examples/symptoms.re
   metadata_empty:
     - field: input.raw_text
+      # `marker` precedes an embedded JSON block in the text field. Omit it if
+      # your field is already JSON (an object or a JSON string).
+      marker: "=== METADATA ==="
       keys: [pages, documentdata]
 
 # Extra columns to pull during the scan so export can show span_name.

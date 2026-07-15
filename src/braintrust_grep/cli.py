@@ -80,31 +80,52 @@ def _build_regex(items: list[str], ignore_case: bool) -> list[Regex]:
     return out
 
 
-def _build_metadata(items: list[str]) -> list[MetadataObjectEmpty]:
+def _build_metadata(items: list, marker: str | None) -> list[MetadataObjectEmpty]:
+    """Build metadata predicates from CLI strings ("FIELD:k1,k2") or spec dicts.
+
+    A dict entry ({field, keys, marker?, require_marker?}) carries its own marker;
+    string entries use the shared ``marker`` argument (from --metadata-marker).
+    """
     out = []
     for item in items:
-        if ":" in item:
-            field, keys = item.split(":", 1)
+        if isinstance(item, dict):
             out.append(
-                MetadataObjectEmpty(field.strip(), tuple(k.strip() for k in keys.split(",")))
+                MetadataObjectEmpty(
+                    item["field"],
+                    tuple(item["keys"]),
+                    marker=item.get("marker"),
+                    require_marker=item.get("require_marker", True),
+                )
             )
-        else:
-            out.append(MetadataObjectEmpty(item.strip()))
+            continue
+        if ":" not in item:
+            err(f"error: --metadata-empty must be FIELD:key1,key2 — got {item!r}")
+            raise typer.Exit(2)
+        field, keys = item.split(":", 1)
+        out.append(
+            MetadataObjectEmpty(
+                field.strip(),
+                tuple(k.strip() for k in keys.split(",")),
+                marker=marker or None,
+                require_marker=bool(marker),
+            )
+        )
     return out
 
 
 def _build_predicate(
     regexes: list[str],
     empties: list[str],
-    metadata: list[str],
+    metadata: list,
     *,
+    metadata_marker: str | None = None,
     any_mode: bool,
     ignore_case: bool,
 ) -> Predicate:
     preds: list[Predicate] = []
     preds.extend(_build_regex(regexes, ignore_case))
     preds.extend(EmptyOrMissing(f.strip()) for f in empties)
-    preds.extend(_build_metadata(metadata))
+    preds.extend(_build_metadata(metadata, metadata_marker))
     if not preds:
         err("error: provide at least one --regex, --empty, or --metadata-empty")
         raise typer.Exit(2)
@@ -153,7 +174,15 @@ def search(
     ] = None,
     metadata_empty: Annotated[
         list[str] | None,
-        typer.Option("--metadata-empty", help="METADATA block field(s) empty, FIELD:key1,key2"),
+        typer.Option("--metadata-empty", help="JSON-in-field key(s) empty, FIELD:key1,key2"),
+    ] = None,
+    metadata_marker: Annotated[
+        str | None,
+        typer.Option(
+            "--metadata-marker",
+            help="Marker preceding the JSON block for --metadata-empty (e.g. '=== METADATA ==='). "
+            "Omit if the field is already JSON.",
+        ),
     ] = None,
     any_mode: Annotated[
         bool, typer.Option("--any", help="OR the predicates instead of AND")
@@ -176,7 +205,12 @@ def search(
 ) -> None:
     """Scan a project + window and emit matching rows as JSONL."""
     predicate = _build_predicate(
-        regex or [], empty or [], metadata_empty or [], any_mode=any_mode, ignore_case=ignore_case
+        regex or [],
+        empty or [],
+        metadata_empty or [],
+        metadata_marker=metadata_marker,
+        any_mode=any_mode,
+        ignore_case=ignore_case,
     )
     window = resolve_window(since, until)
     pid = _project_id(project, project_id)
@@ -300,7 +334,7 @@ def hunt(
     predicate = _build_predicate(
         preds.get("regex", []),
         preds.get("empty", []),
-        _metadata_specs_to_cli(preds.get("metadata_empty", [])),
+        preds.get("metadata_empty", []),
         any_mode=(preds.get("mode", "all") == "any"),
         ignore_case=bool(preds.get("ignore_case", False)),
     )
@@ -347,18 +381,6 @@ def hunt(
 def version() -> None:
     """Print the version."""
     typer.echo(__version__)
-
-
-def _metadata_specs_to_cli(items: list) -> list[str]:
-    """Accept metadata_empty spec entries as strings or {field, keys} dicts."""
-    out = []
-    for it in items:
-        if isinstance(it, str):
-            out.append(it)
-        elif isinstance(it, dict):
-            keys = ",".join(it.get("keys", []))
-            out.append(f"{it['field']}:{keys}" if keys else it["field"])
-    return out
 
 
 def _load_spec(path: str) -> dict[str, Any]:

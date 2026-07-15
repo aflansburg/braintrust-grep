@@ -2,33 +2,59 @@ from __future__ import annotations
 
 from braintrust_grep.metadata import MetadataObjectEmpty
 
-EMPTY_META = '{"documentclass": "X", "pages": [], "status": "CLOSED"}'
-EMPTY_DOC = {"input": {"raw_text": f"=== METADATA ===\n[{EMPTY_META}]\nsome trailing text"}}
-FULL_DOC = {
-    "input": {"raw_text": '=== METADATA ===\n[{"pages": [{"pageid": "1"}], "documentdata": "abc"}]'}
-}
-HAS_DOCDATA = {"input": {"raw_text": '=== METADATA ===\n[{"pages": [], "documentdata": "abc"}]'}}
+MARKER = "=== METADATA ==="
 
 
-def test_matches_empty_pages_and_missing_documentdata():
-    # pages == [] (empty) and documentdata absent -> both empty-or-missing
-    assert MetadataObjectEmpty()(EMPTY_DOC)
+def _doc(meta: str) -> dict:
+    return {"input": {"raw_text": f"{MARKER}\n[{meta}]\ntrailing text"}}
 
 
-def test_does_not_match_when_pages_populated():
-    assert not MetadataObjectEmpty()(FULL_DOC)
+EMPTY_DOC = _doc('{"documentclass": "X", "pages": [], "status": "CLOSED"}')
+FULL_DOC = _doc('{"pages": [{"pageid": "1"}], "documentdata": "abc"}')
+HAS_DOCDATA = _doc('{"pages": [], "documentdata": "abc"}')
 
 
-def test_does_not_match_when_documentdata_present():
-    assert not MetadataObjectEmpty()(HAS_DOCDATA)
+def _pred(**kw):
+    return MetadataObjectEmpty("input.raw_text", ("pages", "documentdata"), marker=MARKER, **kw)
 
 
-def test_no_metadata_block_is_no_match():
-    assert not MetadataObjectEmpty()({"input": {"raw_text": "no marker here"}})
-    assert not MetadataObjectEmpty()({"input": {"raw_text": 123}})  # non-string
+def test_marker_empty_pages_and_missing_documentdata_matches():
+    assert _pred()(EMPTY_DOC)
+
+
+def test_populated_pages_does_not_match():
+    assert not _pred()(FULL_DOC)
+
+
+def test_present_documentdata_does_not_match():
+    assert not _pred()(HAS_DOCDATA)
+
+
+def test_marker_absent_with_require_marker_is_no_match():
+    row = {"input": {"raw_text": '[{"pages": [], "documentdata": null}] (no marker here)'}}
+    assert not _pred()(row)  # require_marker=True by default
+    assert _pred(require_marker=False)(row)  # …but parses when not required
+
+
+def test_structured_dict_field_no_marker():
+    # field is already a JSON object -> no marker needed
+    row = {"meta": {"pages": [], "documentdata": None}}
+    assert MetadataObjectEmpty("meta", ("pages", "documentdata"))(row)
+    row2 = {"meta": {"pages": [1], "documentdata": None}}
+    assert not MetadataObjectEmpty("meta", ("pages", "documentdata"))(row2)
+
+
+def test_json_string_field_no_marker():
+    row = {"payload": '[{"pages": [], "documentdata": ""}]'}
+    assert MetadataObjectEmpty("payload", ("pages", "documentdata"))(row)
+
+
+def test_non_string_non_json_field_is_no_match():
+    assert not _pred()({"input": {"raw_text": 123}})
+    assert not _pred()({"input": {}})  # field missing
 
 
 def test_custom_keys():
-    row = {"input": {"raw_text": '=== METADATA ===\n[{"a": [], "b": null, "c": "x"}]'}}
-    assert MetadataObjectEmpty(keys=("a", "b"))(row)  # both empty
-    assert not MetadataObjectEmpty(keys=("a", "c"))(row)  # c is populated
+    row = {"m": {"a": [], "b": None, "c": "x"}}
+    assert MetadataObjectEmpty("m", ("a", "b"))(row)  # both empty
+    assert not MetadataObjectEmpty("m", ("a", "c"))(row)  # c is populated

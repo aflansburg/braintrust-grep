@@ -5,23 +5,25 @@
 ![python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
-Regex and structural search over [Braintrust](https://www.braintrust.dev) logs —
-with the correctness gotchas baked in.
+Tool for regex and structural search over [Braintrust](https://www.braintrust.dev) logs.
 
 Braintrust's query language (BTQL) has **no regex** in log filters, and its
-`LIKE`/substring operator **silently matches nothing on structured (JSON-object)
-fields**. So the reliable pattern is: prefilter server-side with `MATCH`, pull
-logs for a `created` window, then match locally in Python. `braintrust-grep` does
-exactly that, and handles the rate limit, the 30s query timeout, gzip redirects,
-pagination, and correct span deep-links for you.
+`LIKE`/substring operator can **silently match nothing on structured (JSON-object)
+fields**.
 
-> Status: v0.1, extracted from real incident-hunting tooling. Sync client, `project_logs` only.
+So the reliable pattern I've found is is: prefilter server-side with `MATCH`, pull
+logs for scoped to a `created` window, then match locally in Python.
+
+`braintrust-grep` does this for you while also handling the rate limit, query timeout, gzip redirects,
+pagination, and span deep-linking for you.
+
+I built this while hunting down hallucinations and other discrepancies in an 'AI' (LLM) powered extraction pipeline.
 
 ## Install
 
-Not on PyPI yet — install from GitHub.
+You can install on Github today, PyPi package coming soon.
 
-**As a CLI tool** (isolated, gets you the `btgrep` command):
+**As a CLI tool**
 
 ```bash
 uv tool install git+https://github.com/aflansburg/braintrust-grep
@@ -40,7 +42,7 @@ Then set your credentials:
 
 ```bash
 export BRAINTRUST_API_KEY=...     # required
-export BRAINTRUST_ORG_NAME=...    # optional, for deep-links
+export BRAINTRUST_ORG_NAME=...    # optional, for deep-links !!!! Case Sensitive it seems !!!!
 ```
 
 > Once published to PyPI this becomes `uv tool install braintrust-grep` /
@@ -50,7 +52,7 @@ export BRAINTRUST_ORG_NAME=...    # optional, for deep-links
 ## Quickstart (CLI)
 
 ```bash
-# Find spans whose output matches a regex, last 14 days:
+# Find spans whose output matches a regex, last 14 days (shorter time intervals are more ideal):
 btgrep search -p my-project --since 14d --regex 'output=timeout|refused'
 
 # AND several field-scoped predicates (regex + "key empty or missing"):
@@ -60,7 +62,7 @@ btgrep search -p my-project --since 7d \
     --empty output.result
 ```
 
-Subcommands stream **JSONL on stdin/stdout**, so they pipe. Diagnostics go to stderr.
+Subcommands stream **JSONL on stdin/stdout** and diagnostics go to stderr.
 
 ```bash
 btgrep search -p my-project --since 14d --regex 'output=foo' \
@@ -68,7 +70,7 @@ btgrep search -p my-project --since 14d --regex 'output=foo' \
   | btgrep export -o out.csv -p my-project --org MyOrg --project-id "$PID"
 ```
 
-Or run it all from a declarative spec (copy one from [`examples/`](examples/) and
+You can write up a declarative spec (copy one from [`examples/`](examples/) and
 fill in your project/org/patterns):
 
 ```bash
@@ -92,7 +94,8 @@ window = resolve_window("14d", "now")
 
 predicate = AllOf(
     Regex("output", r'"symptoms"\s*:\s*\['),
-    MetadataObjectEmpty("input.raw_text", keys=("pages", "documentdata")),
+    MetadataObjectEmpty("input.raw_text", keys=("pages", "documentdata"),
+                        marker="=== METADATA ==="),
 )
 matches = list(search(
     client, pid, window=window, predicate=predicate,
@@ -104,19 +107,19 @@ enriched = enrich(client, matches, project_id=pid,
 
 ## Predicates
 
-- `Regex(field, pattern, flags)` — regex over a dotted field (non-strings are JSON-serialized first, so you can match structure). `field="*"` matches the whole row.
-- `EmptyOrMissing(field)` — true when the key is absent **or** the value is `""`/`[]`/`{}`/`null`. (Regex can't express "missing".)
-- `MetadataObjectEmpty(field, keys)` — parses an embedded `=== METADATA === [ {...} ]` block and matches when every named key is empty-or-missing.
-- `AllOf` / `AnyOf` / `Not` — compose them.
+- `Regex(field, pattern, flags)`: regex over a dotted field (non-strings are JSON-serialized first, so you can match structure). `field="*"` matches the whole row.
+- `EmptyOrMissing(field)`: true when the key is absent **or** the value is `""`/`[]`/`{}`/`null`. (Regex can't express "missing".)
+- `MetadataObjectEmpty(field, keys, marker=None)`: parses JSON found in `field` — a JSON column, a JSON string, or a block embedded in text after an optional `marker` (e.g. `"=== METADATA ==="`) — and matches when every named key is empty-or-missing. Schema-agnostic: set `field`/`keys`/`marker` to your own.
+- `AllOf` / `AnyOf` / `Not`: compose them.
 
 ## Constraints & gotchas (why this library exists)
 
-- **30-second query timeout.** A single query over it returns HTTP 504. Fast-paths that stay under it: `created`-range + `MATCH` + cursor pagination. Wide `id IN`/`root_span_id IN`/`LIKE`/span-name scans blow the budget — enrichment therefore uses **narrow time-bucketed** `IN` batches.
-- **`LIKE` is blind to structured fields.** `output LIKE '%x%'` returns 0 when `output` is a JSON object. Use `MATCH`. (This once caused a 650× undercount: 17 vs 11,024.) The query builder warns if you `LIKE` a structured field.
+- **30-second query timeout.** A single query over 30 seconds will return HTTP 504. Fast-path to staying under that: `created`-range + `MATCH` + cursor pagination. Wide `id IN`/`root_span_id IN`/`LIKE`/span-name scans will blow your rate limit budget. Enrichment uses **narrow time-bucketed** `IN` batches.
+- **`LIKE` is blind to structured fields.** `output LIKE '%x%'` returns 0 when `output` is a JSON object. Use `MATCH`. The query builder warns if you `LIKE` a structured field.
 - **Rate limit ~20 requests / 60s per org** (HTTP 429). The client paces itself and honors `Retry-After`; retries `408/429/500/502/503/504` with capped backoff.
-- **Large results 303-redirect to a gzipped object** — handled transparently.
-- **Per-span payloads up to 20 MB** (`raw_text` can be a whole document). The scan selects only the columns your predicates read — never `select: *`.
-- **Row `id` ≠ `span_id`.** Deep-links need `r=<root_span_id>&s=<span_id>`, not the row id. `span_deeplink()` gets this right.
+- **Large results 303-redirect to a gzipped object**: handled transparently.
+- **Per-span payloads up to 20 MB** (`raw_text` can be a whole document). The scan selects only the columns your predicates read. Never `select: *`.
+- **Row `id` ≠ `span_id`.** Deep-links need `r=<root_span_id>&s=<span_id>`, not the row id. `span_deeplink()` takes care of this for you.
 
 ## Configuration (env)
 
@@ -145,7 +148,7 @@ uv run ruff check . && uv run ruff format --check .
 
 ### Running the tests
 
-The suite is **fully offline** — no Braintrust credentials or network. HTTP is
+The suite is **fully offline**. No Braintrust credentials or network required. HTTP is
 faked with `httpx.MockTransport` and time with a `FakeClock`, so it runs in well
 under a second.
 
