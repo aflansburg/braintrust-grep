@@ -119,6 +119,18 @@ enriched = enrich(client, matches, project_id=pid,
 - **Per-span payloads up to 20 MB** (`raw_text` can be a whole document). The scan selects only the columns your predicates read. Never `select: *`.
 - **Row `id` ≠ `span_id`.** Deep-links need `r=<root_span_id>&s=<span_id>`, not the row id. `span_deeplink()` takes care of this for you.
 
+## The long running enrichment
+
+Do not despair. On some larger cohorts of traces, you may encounter a long-running attribution process. Enrichment essentially provides attribution and a link back to the span in the Braintrust UI. Hang in there (the wait is to prevent blowing through your API quota):
+```sh
+11318 row(s) written.
+enrich buckets 1/25, roots resolved 588
+enrich buckets 2/25, roots resolved 1070
+enrich buckets 3/25, roots resolved 1829
+enrich buckets 4/25, roots resolved 2037
+enrich buckets 5/25, roots resolved 3009
+```
+
 ## Configuration (env)
 
 | Var | Purpose |
