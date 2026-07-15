@@ -64,6 +64,8 @@ btgrep search -p my-project --since 7d \
 
 Subcommands stream **JSONL on stdin/stdout** and diagnostics go to stderr.
 
+It's a subcommand pattern we decided to support common in pipeline tooling like `jq` or the OG `grep | sed | awk`.
+
 ```bash
 btgrep search -p my-project --since 14d --regex 'output=foo' \
   | btgrep enrich -p my-project --root-field input.doc_id --root-field input.patient_id \
