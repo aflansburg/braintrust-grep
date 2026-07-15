@@ -255,6 +255,13 @@ def enrich(
     ] = None,
     bucket: Annotated[str, typer.Option(help="Time-bucket size for batched lookups")] = "1h",
     batch: Annotated[int, typer.Option(help="Max root_span_ids per IN query")] = 60,
+    limit: Annotated[
+        int | None, typer.Option("--limit", help="Only enrich the first N matches")
+    ] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Print the size/time estimate and exit (no queries)"),
+    ] = False,
     input_file: Annotated[
         str | None, typer.Option("--input", "-i", help="Input JSONL (default stdin)")
     ] = None,
@@ -263,7 +270,8 @@ def enrich(
     """Join fields from each trace's root span onto matched rows.
 
     Provide the dotted paths you want with --root-field, e.g.
-    ``--root-field input.doc_id --root-field input.user_id``.
+    ``--root-field input.doc_id --root-field input.user_id``. Use --dry-run to
+    see how many queries / how long it will take before committing.
     """
     if not root_field:
         err("error: enrich needs at least one --root-field (e.g. input.doc_id)")
@@ -279,6 +287,8 @@ def enrich(
                 root_fields=root_field,
                 bucket=bucket,
                 batch=batch,
+                limit=limit,
+                dry_run=dry_run,
                 progress=err,
             )
         except BtgrepError as exc:

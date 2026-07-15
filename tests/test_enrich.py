@@ -85,3 +85,41 @@ def test_enrich_unresolved_roots_get_none():
     client, _, _ = make_client([json_response({"data": [], "cursor": None})])
     out = enrich(client, matches, project_id="pid", root_fields=["input.doc_id"])
     assert out[0]["doc_id"] is None
+
+
+def test_enrich_dry_run_reports_estimate_and_skips_queries():
+    matches = [
+        {"id": "a", "span_id": "s", "root_span_id": "r", "created": "2026-07-05T04:24:34.000Z"}
+    ]
+    client, _, rec = make_client([])  # no responses queued
+    msgs: list[str] = []
+    out = enrich(
+        client,
+        matches,
+        project_id="pid",
+        root_fields=["input.doc_id"],
+        dry_run=True,
+        progress=msgs.append,
+    )
+    assert rec.requests == []  # no queries issued
+    assert "doc_id" not in out[0]  # rows returned unchanged
+    assert msgs and msgs[0].startswith("enriching 1 matches across 1 buckets")
+
+
+def test_enrich_limit_caps_matches():
+    matches = [
+        {"id": "a", "span_id": "s1", "root_span_id": "r1", "created": "2026-07-05T04:24:34.000Z"},
+        {"id": "b", "span_id": "s2", "root_span_id": "r2", "created": "2026-07-05T04:30:00.000Z"},
+    ]
+    client, _, _ = make_client([])
+    msgs: list[str] = []
+    enrich(
+        client,
+        matches,
+        project_id="pid",
+        root_fields=["input.doc_id"],
+        limit=1,
+        dry_run=True,
+        progress=msgs.append,
+    )
+    assert msgs[0].startswith("enriching 1 matches")

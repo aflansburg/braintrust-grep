@@ -46,14 +46,22 @@ def enrich(
     root_fields: Sequence[str],
     bucket: str = "1h",
     batch: int = 60,
+    limit: int | None = None,
+    dry_run: bool = False,
     progress: Callable[[str], None] | None = None,
 ) -> list[dict[str, Any]]:
     """Return ``rows`` with each root field flattened onto matching rows.
 
     ``root_fields`` are dotted paths on the root span (e.g. ``input.doc_id``);
     the flattened key on each row is the leaf name (``doc_id``).
+
+    ``limit`` caps how many rows are enriched (first N). ``dry_run`` reports the
+    up-front estimate via ``progress`` and returns the rows unchanged without
+    issuing any queries.
     """
     rows = list(rows)
+    if limit is not None:
+        rows = rows[:limit]
     bucket_seconds = _parse_bucket(bucket)
     aliases = [f"{p} as {_leaf(p)}" for p in root_fields]
     leaves = [_leaf(p) for p in root_fields]
@@ -68,8 +76,18 @@ def enrich(
         key = _floor(_parse_created(created), bucket_seconds)
         buckets.setdefault(key, set()).add(root)
 
+    # Up-front estimate so a large enrichment isn't a surprise.
+    n_queries = sum((len(roots) + batch - 1) // batch for roots in buckets.values())
+    est_min = n_queries * client.options.min_request_interval / 60
+    if progress:
+        progress(
+            f"enriching {len(rows)} matches across {len(buckets)} buckets "
+            f"(~{n_queries} queries, ~{est_min:.0f} min)"
+        )
+    if dry_run:
+        return rows
+
     root_map: dict[str, dict[str, Any]] = {}
-    total_queries = sum((len(roots) + batch - 1) // batch for roots in buckets.values())
     done = 0
     for start, roots in sorted(buckets.items()):
         lo = _iso(start - _dt.timedelta(hours=1))
@@ -88,7 +106,7 @@ def enrich(
                     root_map[r["root_span_id"]] = {leaf: r.get(leaf) for leaf in leaves}
             done += 1
             if progress:
-                progress(f"enrich: {done}/{total_queries} queries · {len(root_map)} roots resolved")
+                progress(f"enrich: {done}/{n_queries} queries · {len(root_map)} roots resolved")
 
     for row in rows:
         fields = root_map.get(row.get("root_span_id", ""), {})
