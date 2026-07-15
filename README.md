@@ -11,8 +11,8 @@ Braintrust's query language (BTQL) has **no regex** in log filters, and its
 `LIKE`/substring operator can **silently match nothing on structured (JSON-object)
 fields**.
 
-So the reliable pattern I've found is is: prefilter server-side with `MATCH`, pull
-logs for scoped to a `created` window, then match locally in Python.
+So the reliable pattern I've found is: prefilter server-side with `MATCH`, pull
+logs scoped to a `created` window, then match locally in Python.
 
 `braintrust-grep` does this for you while also handling the rate limit, query timeout, gzip redirects,
 pagination, and span deep-linking for you.
@@ -52,7 +52,7 @@ export BRAINTRUST_ORG_NAME=...    # optional, for deep-links !!!! Case Sensitive
 ## Quickstart (CLI)
 
 ```bash
-# Find spans whose output matches a regex, last 14 days (shorter time intervals are more ideal):
+# Find spans whose output matches a regex, last 14 days (shorter time intervals are more ideal: 1h, 3h, etc.):
 btgrep search -p my-project --since 14d --regex 'output=timeout|refused'
 
 # AND several field-scoped predicates (regex + "key empty or missing"):
