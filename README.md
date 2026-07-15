@@ -62,7 +62,7 @@ btgrep search -p my-project --since 7d \
     --empty output.result
 ```
 
-Subcommands stream **JSONL on stdin/stdout** and diagnostics go to stderr.
+Subcommands stream JSONL on stdin/stdout and diagnostics go to stderr.
 
 It's a subcommand pattern we decided to support common in pipeline tooling like `jq` or the OG `grep | sed | awk`.
 
@@ -116,7 +116,7 @@ enriched = enrich(client, matches, project_id=pid,
 
 ## Constraints & gotchas (why this library exists)
 
-- **30-second query timeout.** A single query over 30 seconds will return HTTP 504. Fast-path to staying under that: `created`-range + `MATCH` + cursor pagination. Wide `id IN`/`root_span_id IN`/`LIKE`/span-name scans will blow your rate limit budget. Enrichment uses **narrow time-bucketed** `IN` batches.
+- **30-second query timeout.** A single query over 30 seconds will return HTTP 504. Fast-path to staying under that: `created`-range + `MATCH` + cursor pagination. Wide `id IN`/`root_span_id IN`/`LIKE`/span-name scans will blow your rate limit budget. Enrichment uses narrow time-bucketed `IN` batches.
 - **`LIKE` is blind to structured fields.** `output LIKE '%x%'` returns 0 when `output` is a JSON object. Use `MATCH`. The query builder warns if you `LIKE` a structured field.
 - **Rate limit ~20 requests / 60s per org** (HTTP 429). The client paces itself and honors `Retry-After`; retries `408/429/500/502/503/504` with capped backoff.
 - **Large results 303-redirect to a gzipped object**: handled transparently.
@@ -150,7 +150,7 @@ uv run ruff check . && uv run ruff format --check .
 
 ### Running the tests
 
-The suite is **fully offline**. No Braintrust credentials or network required. HTTP is
+The suite is offline. No Braintrust credentials or network required. HTTP is
 faked with `httpx.MockTransport` and time with a `FakeClock`, so it runs in well
 under a second.
 
