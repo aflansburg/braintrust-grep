@@ -1,8 +1,10 @@
 # braintrust-grep
 
-![CI](https://github.com/aflansburg/braintrust-grep/actions/workflows/ci.yml/badge.svg)
-![coverage](https://img.shields.io/badge/coverage-82%25-brightgreen)
-![python](https://img.shields.io/badge/python-3.11%2B-blue)
+[![CI](https://github.com/aflansburg/braintrust-grep/actions/workflows/ci.yml/badge.svg)](https://github.com/aflansburg/braintrust-grep/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/braintrust-grep)](https://pypi.org/project/braintrust-grep/)
+[![Python](https://img.shields.io/pypi/pyversions/braintrust-grep)](https://pypi.org/project/braintrust-grep/)
+[![Downloads](https://img.shields.io/pypi/dm/braintrust-grep)](https://pypi.org/project/braintrust-grep/)
+![coverage](https://img.shields.io/badge/coverage-84%25-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
 Tool for regex and structural search over [Braintrust](https://www.braintrust.dev) logs.
@@ -21,33 +23,28 @@ I built this while hunting down hallucinations and other discrepancies in an 'AI
 
 ## Install
 
-You can install on Github today, PyPi package coming soon.
-
-**As a CLI tool**
+**As a CLI tool** — installs the `btgrep` command:
 
 ```bash
-uv tool install git+https://github.com/aflansburg/braintrust-grep
-
-# …or run it once without installing:
-uvx --from git+https://github.com/aflansburg/braintrust-grep btgrep --help
+uv tool install braintrust-grep      # or: uvx braintrust-grep · pipx install braintrust-grep
 ```
 
 **As a library:**
 
 ```bash
-uv add "braintrust-grep @ git+https://github.com/aflansburg/braintrust-grep"
+uv add braintrust-grep               # or: pip install braintrust-grep
 ```
 
 Then set your credentials:
 
 ```bash
-export BRAINTRUST_API_KEY=...     # required
-export BRAINTRUST_ORG_NAME=...    # optional, for deep-links !!!! Case Sensitive it seems !!!!
+export BRAINTRUST_API_KEY=...        # required
+export BRAINTRUST_ORG_NAME=...       # optional, for deep-links (case-sensitive!)
 ```
 
-> Once published to PyPI this becomes `uv tool install braintrust-grep` /
-> `uvx braintrust-grep`. The `braintrust-grep` command is an alias for `btgrep`,
-> so `uvx braintrust-grep` resolves without `--from`.
+> `braintrust-grep` and `btgrep` are the same command (the former is an alias, so
+> `uvx braintrust-grep` works without `--from`). For unreleased changes, install
+> from source: `uv tool install git+https://github.com/aflansburg/braintrust-grep`.
 
 ## Quickstart (CLI)
 
