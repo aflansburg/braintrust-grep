@@ -3,7 +3,6 @@
 [![CI](https://github.com/aflansburg/braintrust-grep/actions/workflows/ci.yml/badge.svg)](https://github.com/aflansburg/braintrust-grep/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/braintrust-grep)](https://pypi.org/project/braintrust-grep/)
 [![Python](https://img.shields.io/pypi/pyversions/braintrust-grep)](https://pypi.org/project/braintrust-grep/)
-[![Downloads](https://img.shields.io/pypi/dm/braintrust-grep)](https://pypi.org/project/braintrust-grep/)
 ![coverage](https://img.shields.io/badge/coverage-84%25-brightgreen)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
