@@ -1,0 +1,36 @@
+name: publish
+
+# Trusted Publishing (OIDC) — no API tokens.
+#   - Manual "Run workflow"      -> TestPyPI  (GitHub environment: testpypi)
+#   - Publishing a GitHub Release -> PyPI      (GitHub environment: pypi)
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  testpypi:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write # required for trusted publishing
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8.3.2
+      - run: uv build
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  pypi:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v8.3.2
+      - run: uv build
+      - uses: pypa/gh-action-pypi-publish@release/v1
