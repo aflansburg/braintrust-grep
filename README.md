@@ -19,11 +19,33 @@ pagination, and correct span deep-links for you.
 
 ## Install
 
+Not on PyPI yet — install from GitHub.
+
+**As a CLI tool** (isolated, gets you the `btgrep` command):
+
 ```bash
-uv add braintrust-grep            # or: pipx install braintrust-grep
+uv tool install git+https://github.com/aflansburg/braintrust-grep
+
+# …or run it once without installing:
+uvx --from git+https://github.com/aflansburg/braintrust-grep btgrep --help
+```
+
+**As a library:**
+
+```bash
+uv add "braintrust-grep @ git+https://github.com/aflansburg/braintrust-grep"
+```
+
+Then set your credentials:
+
+```bash
 export BRAINTRUST_API_KEY=...     # required
 export BRAINTRUST_ORG_NAME=...    # optional, for deep-links
 ```
+
+> Once published to PyPI this becomes `uv tool install braintrust-grep` /
+> `uvx braintrust-grep`. The `braintrust-grep` command is an alias for `btgrep`,
+> so `uvx braintrust-grep` resolves without `--from`.
 
 ## Quickstart (CLI)
 

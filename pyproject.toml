@@ -36,6 +36,9 @@ dev = ["braintrust-grep[test,dotenv,yaml]", "ruff>=0.6"]
 
 [project.scripts]
 btgrep = "braintrust_grep.cli:main"
+# Alias matching the package name so `uvx braintrust-grep` resolves directly
+# (uv infers the tool from the command name). `btgrep` is the short form.
+braintrust-grep = "braintrust_grep.cli:main"
 
 [build-system]
 requires = ["hatchling"]
