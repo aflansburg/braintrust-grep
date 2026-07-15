@@ -47,6 +47,32 @@ def test_enrich_joins_root_fields_by_root_span_id():
     assert "created >=" in q
 
 
+def test_enrich_reports_per_chunk_progress():
+    matches = [
+        {"id": "a", "span_id": "s1", "root_span_id": "r1", "created": "2026-07-05T04:24:34.000Z"},
+        {"id": "b", "span_id": "s2", "root_span_id": "r2", "created": "2026-07-05T04:30:00.000Z"},
+    ]
+    page = {
+        "data": [
+            {"span_id": "r1", "root_span_id": "r1", "doc_id": "D1"},
+            {"span_id": "r2", "root_span_id": "r2", "doc_id": "D2"},
+        ],
+        "cursor": None,
+    }
+    client, _, _ = make_client([json_response(page)])
+    msgs: list[str] = []
+    enrich(
+        client,
+        matches,
+        project_id="pid",
+        root_fields=["input.doc_id"],
+        progress=msgs.append,
+    )
+    # 2 roots in one hour-bucket, default batch 60 -> 1 chunk query total
+    assert msgs, "expected progress output"
+    assert msgs[-1] == "enrich: 1/1 queries · 2 roots resolved"
+
+
 def test_enrich_unresolved_roots_get_none():
     matches = [
         {

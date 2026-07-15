@@ -69,8 +69,9 @@ def enrich(
         buckets.setdefault(key, set()).add(root)
 
     root_map: dict[str, dict[str, Any]] = {}
-    total = len(buckets)
-    for i, (start, roots) in enumerate(sorted(buckets.items()), 1):
+    total_queries = sum((len(roots) + batch - 1) // batch for roots in buckets.values())
+    done = 0
+    for start, roots in sorted(buckets.items()):
         lo = _iso(start - _dt.timedelta(hours=1))
         hi = _iso(start + _dt.timedelta(seconds=bucket_seconds) + _dt.timedelta(minutes=5))
         root_list = sorted(roots)
@@ -85,8 +86,9 @@ def enrich(
             for r in client.paginate(query):
                 if r.get("span_id") == r.get("root_span_id"):
                     root_map[r["root_span_id"]] = {leaf: r.get(leaf) for leaf in leaves}
-        if progress:
-            progress(f"enrich buckets {i}/{total}, roots resolved {len(root_map)}")
+            done += 1
+            if progress:
+                progress(f"enrich: {done}/{total_queries} queries · {len(root_map)} roots resolved")
 
     for row in rows:
         fields = root_map.get(row.get("root_span_id", ""), {})

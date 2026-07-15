@@ -38,6 +38,7 @@ app = typer.Typer(
 
 def err(msg: str) -> None:
     typer.echo(msg, err=True)
+    sys.stderr.flush()  # so long-running progress is visible in real time
 
 
 def _client() -> BtqlClient:
